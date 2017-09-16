@@ -83,6 +83,18 @@ function getQuiz(id, callback) {
     });
 }
 
+function getLessons() {
+    firebase.auth().signInAnonymously().catch(function(error) {
+        // Handle Errors here.
+        var errorCode = error.code;
+        var errorMessage = error.message;
+        console.log(error + ': ' + errorMessage);
+        // ...
+    });
+}
+
+
+
 
 // --------------- Functions that control the skill's behavior -----------------------
 
@@ -270,19 +282,18 @@ function quizSelect(intent, session, callback) {
     sessionAttributes['quizId'] = lessons[intentRequest.slots.quiz]
     getQuiz(lessons[intentRequest.slots.quiz], function(response) {
         sessionAttributes['quiz'] = response;
+        sessionAttributes['question'] = 0;
+        sessionAttributes['correct'] = 0;
+        sessionAttributes['incorrect'] = 0;
+
+        var speechOutput = sessionAttributes['quiz'][sessionAttributes['question']][definition];
+        var repromptText = sessionAttributes['quiz'][sessionAttributes['question']][definition];
+
+        const shouldEndSession = false;
+
+        callback(sessionAttributes,
+            buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
     });
-
-    sessionAttributes['question'] = 0;
-    sessionAttributes['correct'] = 0;
-    sessionAttributes['incorrect'] = 0;
-
-    var speechOutput = sessionAttributes['quiz'][sessionAttributes['question']][definition];
-    var repromptText = sessionAttributes['quiz'][sessionAttributes['question']][definition];
-
-    const shouldEndSession = false;
-
-    callback(sessionAttributes,
-        buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
 }
 
 function endQuiz(intent, session, callback) {
