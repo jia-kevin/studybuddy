@@ -1,0 +1,32 @@
+{
+  "name": "studybuddy",
+  "version": "1.0.0",
+  "description": "Study buddy for Amazon Alexa",
+  "main": "StudyBuddyLambda.js",
+  "dependencies": {
+    "firebase": "^4.3.1",
+    "firebase-admin": "^5.2.1",
+    "requests": "^0.2.2",
+    "request": "^2.81.0",
+    "save": "^2.3.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jia-kevin/studybuddy.git"
+  },
+  "keywords": [
+    "Alexa",
+    "Node.Js",
+    "Javascript"
+  ],
+  "author": "Kevin Jia, Judy Liu, Kevin Zhang",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jia-kevin/studybuddy/issues"
+  },
+  "homepage": "https://github.com/jia-kevin/studybuddy#readme"
+}
