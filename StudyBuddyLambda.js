@@ -161,6 +161,36 @@ function getColorFromSession(intent, session, callback) {
 }
 
 
+function repeatQuestion (intent, session, callback) {
+  const repromptText = null;
+  const sessionAttributes = {};
+  let shouldEndSession = false;
+  let speechOutput = '';
+
+  //need to recall the current question and feed into speechOutput
+
+  callback(sessionAttributes,
+    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+
+}
+
+function skipQuestion (intent, session, callback) {
+  let question = session.attributes.question;
+  const repromptText = null;
+  const sessionAttributes = {};
+  let shouldEndSession = false;
+  let speechOutput = '';
+
+  if (session.attributes) {
+    session.attributes['question'] = question++;
+  }
+
+  //call the current question and feed string into speechOutput
+
+  callback(sessionAttributes,
+    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+}
+
 // --------------- Events -----------------------
 
 /**
@@ -194,8 +224,6 @@ function onIntent(intentRequest, session, callback) {
         categorySelect(intent, session, callback);
     } else if (intentName === 'quizSelect') {
         quizSelect(intent, session, callback);
-    } else if (intentName === 'nextQuestion') {
-        nextQuestion(intent, session, callback);
     } else if (intentName === 'repeatQuestion') {
         repeatQuestion(intent, session, callback);
     } else if (intentName === 'skipQuestion') {
@@ -263,7 +291,10 @@ exports.handler = (event, context, callback) => {
         callback(err);
     }
 };
+<<<<<<< HEAD
 
 getQuiz(224427531, function(data) {
     console.log(randomizeOrder(data));
 });
+=======
+>>>>>>> 7438221e620689c71cf18a06c0e58b236302f01e
