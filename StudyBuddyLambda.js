@@ -6,294 +6,228 @@
  * Kevin Jia, Judy Liu, Kevin Zhang
  **/
 
-'use strict';
+ 'use strict';
 
-const Alexa = require('alexa-sdk');
-const questions = require('./question');
+ /**
+  * This sample demonstrates a simple skill built with the Amazon Alexa Skills Kit.
+  * The Intent Schema, Custom Slots, and Sample Utterances for this skill, as well as
+  * testing instructions are located at http://amzn.to/1LzFrj6
+  *
+  * For additional samples, visit the Alexa Skills Kit Getting Started guide at
+  * http://amzn.to/1LGWsLG
+  */
 
-const ANSWER_COUNT = 10; // The number of possible answers per trivia question.
-const GAME_LENGTH = 5;  // The number of questions per trivia game.
-const GAME_STATES = {
-    TRIVIA: '_TRIVIAMODE', // Asking trivia questions.
-    START: '_STARTMODE', // Entry point, start the game.
-    HELP: '_HELPMODE', // The user is asking for help.
-};
-const APP_ID = undefined; // TODO replace with your app ID (OPTIONAL)
 
-/**
- * When editing your questions pay attention to your punctuation. Make sure you use question marks or periods.
- * Make sure the first answer is the correct one. Set at least ANSWER_COUNT answers, any extras will be shuffled in.
- */
+ // --------------- Helpers that build all of the responses -----------------------
 
-const newSessionHandlers = {
-    'LaunchRequest': function () {
-        this.handler.state = GAME_STATES.START;
-        this.emitWithState('StartGame', true);
-    },
-    'AMAZON.StartOverIntent': function () {
-        this.handler.state = GAME_STATES.START;
-        this.emitWithState('StartGame', true);
-    },
-    'AMAZON.HelpIntent': function () {
-        this.handler.state = GAME_STATES.HELP;
-        this.emitWithState('helpTheUser', true);
-    },
-    'Unhandled': function () {
-        const speechOutput = this.t('START_UNHANDLED');
-        this.emit(':ask', speechOutput, speechOutput);
-    },
-};
+ function buildSpeechletResponse(title, output, repromptText, shouldEndSession) {
+     return {
+         outputSpeech: {
+             type: 'PlainText',
+             text: output,
+         },
+         card: {
+             type: 'Simple',
+             title: `SessionSpeechlet - ${title}`,
+             content: `SessionSpeechlet - ${output}`,
+         },
+         reprompt: {
+             outputSpeech: {
+                 type: 'PlainText',
+                 text: repromptText,
+             },
+         },
+         shouldEndSession,
+     };
+ }
 
-function populateGameQuestions(translatedQuestions) {
-    const gameQuestions = [];
-    const indexList = [];
-    let index = translatedQuestions.length;
+ function buildResponse(sessionAttributes, speechletResponse) {
+     return {
+         version: '1.0',
+         sessionAttributes,
+         response: speechletResponse,
+     };
+ }
 
-    if (GAME_LENGTH > index) {
-        throw new Error('Invalid Game Length.');
-    }
 
-    for (let i = 0; i < translatedQuestions.length; i++) {
-        indexList.push(i);
-    }
+ // --------------- Functions that control the skill's behavior -----------------------
 
-    // Pick GAME_LENGTH random questions from the list to ask the user, make sure there are no repeats.
-    for (let j = 0; j < GAME_LENGTH; j++) {
-        const rand = Math.floor(Math.random() * index);
-        index -= 1;
+ function getWelcomeResponse(callback) {
+     // If we wanted to initialize the session to have some attributes we could add those here.
+     const sessionAttributes = {};
+     const cardTitle = 'Welcome';
+     const speechOutput = 'Welcome to the Alexa Skills Kit sample. ' +
+         'Please tell me your favorite color by saying, my favorite color is red';
+     // If the user either does not reply to the welcome message or says something that is not
+     // understood, they will be prompted again with this text.
+     const repromptText = 'Please tell me your favorite color by saying, ' +
+         'my favorite color is red';
+     const shouldEndSession = false;
 
-        const temp = indexList[index];
-        indexList[index] = indexList[rand];
-        indexList[rand] = temp;
-        gameQuestions.push(indexList[index]);
-    }
+     callback(sessionAttributes,
+         buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+ }
 
-    return gameQuestions;
-}
+ function handleSessionEndRequest(callback) {
+     const cardTitle = 'Session Ended';
+     const speechOutput = 'Thank you for trying the Alexa Skills Kit sample. Have a nice day!';
+     // Setting this to true ends the session and exits the skill.
+     const shouldEndSession = true;
 
-/**
- * Get the answers for a given question, and place the correct answer at the spot marked by the
- * correctAnswerTargetLocation variable. Note that you can have as many answers as you want but
- * only ANSWER_COUNT will be selected.
- * */
-function populateRoundAnswers(gameQuestionIndexes, correctAnswerIndex, correctAnswerTargetLocation, translatedQuestions) {
-    const answers = [];
-    const answersCopy = translatedQuestions[gameQuestionIndexes[correctAnswerIndex]][Object.keys(translatedQuestions[gameQuestionIndexes[correctAnswerIndex]])[0]].slice();
-    let index = answersCopy.length;
+     callback({}, buildSpeechletResponse(cardTitle, speechOutput, null, shouldEndSession));
+ }
 
-    if (index < ANSWER_COUNT) {
-        throw new Error('Not enough answers for question.');
-    }
+ function createFavoriteColorAttributes(favoriteColor) {
+     return {
+         favoriteColor,
+     };
+ }
 
-    // Shuffle the answers, excluding the first element which is the correct answer.
-    for (let j = 1; j < answersCopy.length; j++) {
-        const rand = Math.floor(Math.random() * (index - 1)) + 1;
-        index -= 1;
+ /**
+  * Sets the color in the session and prepares the speech to reply to the user.
+  */
+ function setColorInSession(intent, session, callback) {
+     const cardTitle = intent.name;
+     const favoriteColorSlot = intent.slots.Color;
+     let repromptText = '';
+     let sessionAttributes = {};
+     const shouldEndSession = false;
+     let speechOutput = '';
 
-        const swapTemp1 = answersCopy[index];
-        answersCopy[index] = answersCopy[rand];
-        answersCopy[rand] = swapTemp1;
-    }
+     if (favoriteColorSlot) {
+         const favoriteColor = favoriteColorSlot.value;
+         sessionAttributes = createFavoriteColorAttributes(favoriteColor);
+         speechOutput = `I now know your favorite color is ${favoriteColor}. You can ask me ` +
+             "your favorite color by saying, what's my favorite color?";
+         repromptText = "You can ask me your favorite color by saying, what's my favorite color?";
+     } else {
+         speechOutput = "I'm not sure what your favorite color is. Please try again.";
+         repromptText = "I'm not sure what your favorite color is. You can tell me your " +
+             'favorite color by saying, my favorite color is red';
+     }
 
-    // Swap the correct answer into the target location
-    for (let i = 0; i < ANSWER_COUNT; i++) {
-        answers[i] = answersCopy[i];
-    }
-    const swapTemp2 = answers[0];
-    answers[0] = answers[correctAnswerTargetLocation];
-    answers[correctAnswerTargetLocation] = swapTemp2;
-    return answers;
-}
+     callback(sessionAttributes,
+          buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+ }
 
-function isAnswerSlotValid(intent) {
-    const answerSlotFilled = intent && intent.slots && intent.slots.Answer && intent.slots.Answer.value;
-    const answerSlotIsInt = answerSlotFilled && !isNaN(parseInt(intent.slots.Answer.value, 10));
-    return answerSlotIsInt
-        && parseInt(intent.slots.Answer.value, 10) < (ANSWER_COUNT + 1)
-        && parseInt(intent.slots.Answer.value, 10) > 0;
-}
+ function getColorFromSession(intent, session, callback) {
+     let favoriteColor;
+     const repromptText = null;
+     const sessionAttributes = {};
+     let shouldEndSession = false;
+     let speechOutput = '';
 
-function handleUserGuess(userGaveUp) {
-    const answerSlotValid = isAnswerSlotValid(this.event.request.intent);
-    let speechOutput = '';
-    let speechOutputAnalysis = '';
-    const gameQuestions = this.attributes.questions;
-    let correctAnswerIndex = parseInt(this.attributes.correctAnswerIndex, 10);
-    let currentScore = parseInt(this.attributes.score, 10);
-    let currentQuestionIndex = parseInt(this.attributes.currentQuestionIndex, 10);
-    const correctAnswerText = this.attributes.correctAnswerText;
-    const translatedQuestions = this.t('QUESTIONS');
+     if (session.attributes) {
+         favoriteColor = session.attributes.favoriteColor;
+     }
 
-    if (answerSlotValid && parseInt(this.event.request.intent.slots.Answer.value, 10) === this.attributes['correctAnswerIndex']) {
-        currentScore++;
-        speechOutputAnalysis = this.t('ANSWER_CORRECT_MESSAGE');
-    } else {
-        if (!userGaveUp) {
-            speechOutputAnalysis = this.t('ANSWER_WRONG_MESSAGE');
-        }
+     if (favoriteColor) {
+         speechOutput = `Your favorite color is ${favoriteColor}. Goodbye.`;
+         shouldEndSession = true;
+     } else {
+         speechOutput = "I'm not sure what your favorite color is, you can say, my favorite color " +
+             ' is red';
+     }
 
-        speechOutputAnalysis += this.t('CORRECT_ANSWER_MESSAGE', correctAnswerIndex, correctAnswerText);
-    }
+     // Setting repromptText to null signifies that we do not want to reprompt the user.
+     // If the user does not respond or says something that is not understood, the session
+     // will end.
+     callback(sessionAttributes,
+          buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+ }
 
-    // Check if we can exit the game session after GAME_LENGTH questions (zero-indexed)
-    if (this.attributes['currentQuestionIndex'] === GAME_LENGTH - 1) {
-        speechOutput = userGaveUp ? '' : this.t('ANSWER_IS_MESSAGE');
-        speechOutput += speechOutputAnalysis + this.t('GAME_OVER_MESSAGE', currentScore.toString(), GAME_LENGTH.toString());
 
-        this.emit(':tell', speechOutput);
-    } else {
-        currentQuestionIndex += 1;
-        correctAnswerIndex = Math.floor(Math.random() * (ANSWER_COUNT));
-        const spokenQuestion = Object.keys(translatedQuestions[gameQuestions[currentQuestionIndex]])[0];
-        const roundAnswers = populateRoundAnswers.call(this, gameQuestions, currentQuestionIndex, correctAnswerIndex, translatedQuestions);
-        const questionIndexForSpeech = currentQuestionIndex + 1;
-        let repromptText = this.t('TELL_QUESTION_MESSAGE', questionIndexForSpeech.toString(), spokenQuestion);
+ // --------------- Events -----------------------
 
-        for (let i = 0; i < ANSWER_COUNT; i++) {
-            repromptText += `${i + 1}. ${roundAnswers[i]}. `;
-        }
+ /**
+  * Called when the session starts.
+  */
+ function onSessionStarted(sessionStartedRequest, session) {
+     console.log(`onSessionStarted requestId=${sessionStartedRequest.requestId}, sessionId=${session.sessionId}`);
+ }
 
-        speechOutput += userGaveUp ? '' : this.t('ANSWER_IS_MESSAGE');
-        speechOutput += speechOutputAnalysis + this.t('SCORE_IS_MESSAGE', currentScore.toString()) + repromptText;
+ /**
+  * Called when the user launches the skill without specifying what they want.
+  */
+ function onLaunch(launchRequest, session, callback) {
+     console.log(`onLaunch requestId=${launchRequest.requestId}, sessionId=${session.sessionId}`);
 
-        Object.assign(this.attributes, {
-            'speechOutput': repromptText,
-            'repromptText': repromptText,
-            'currentQuestionIndex': currentQuestionIndex,
-            'correctAnswerIndex': correctAnswerIndex + 1,
-            'questions': gameQuestions,
-            'score': currentScore,
-            'correctAnswerText': translatedQuestions[gameQuestions[currentQuestionIndex]][Object.keys(translatedQuestions[gameQuestions[currentQuestionIndex]])[0]][0],
-        });
+     // Dispatch to your skill's launch.
+     getWelcomeResponse(callback);
+ }
 
-        this.emit(':askWithCard', speechOutput, repromptText, this.t('GAME_NAME'), repromptText);
-    }
-}
+ /**
+  * Called when the user specifies an intent for this skill.
+  */
+ function onIntent(intentRequest, session, callback) {
+     console.log(`onIntent requestId=${intentRequest.requestId}, sessionId=${session.sessionId}`);
 
-const startStateHandlers = Alexa.CreateStateHandler(GAME_STATES.START, {
-    'StartGame': function (newGame) {
-        let speechOutput = newGame ? this.t('NEW_GAME_MESSAGE', this.t('GAME_NAME')) + this.t('WELCOME_MESSAGE', GAME_LENGTH.toString()) : '';
-        // Select GAME_LENGTH questions for the game
-        const translatedQuestions = this.t('QUESTIONS');
-        const gameQuestions = populateGameQuestions(translatedQuestions);
-        // Generate a random index for the correct answer, from 0 to 3
-        const correctAnswerIndex = Math.floor(Math.random() * (ANSWER_COUNT));
-        // Select and shuffle the answers for each question
-        const roundAnswers = populateRoundAnswers(gameQuestions, 0, correctAnswerIndex, translatedQuestions);
-        const currentQuestionIndex = 0;
-        const spokenQuestion = Object.keys(translatedQuestions[gameQuestions[currentQuestionIndex]])[0];
-        let repromptText = this.t('TELL_QUESTION_MESSAGE', '1', spokenQuestion);
+     const intent = intentRequest.intent;
+     const intentName = intentRequest.intent.name;
 
-        for (let i = 0; i < ANSWER_COUNT; i++) {
-            repromptText += `${i + 1}. ${roundAnswers[i]}. `;
-        }
+     // Dispatch to your skill's intent handlers
+     if (intentName === 'MyColorIsIntent') {
+         setColorInSession(intent, session, callback);
+     } else if (intentName === 'WhatsMyColorIntent') {
+         getColorFromSession(intent, session, callback);
+     } else if (intentName === 'AMAZON.HelpIntent') {
+         getWelcomeResponse(callback);
+     } else if (intentName === 'AMAZON.StopIntent' || intentName === 'AMAZON.CancelIntent') {
+         handleSessionEndRequest(callback);
+     } else {
+         throw new Error('Invalid intent');
+     }
+ }
 
-        speechOutput += repromptText;
+ /**
+  * Called when the user ends the session.
+  * Is not called when the skill returns shouldEndSession=true.
+  */
+ function onSessionEnded(sessionEndedRequest, session) {
+     console.log(`onSessionEnded requestId=${sessionEndedRequest.requestId}, sessionId=${session.sessionId}`);
+     // Add cleanup logic here
+ }
 
-        Object.assign(this.attributes, {
-            'speechOutput': repromptText,
-            'repromptText': repromptText,
-            'currentQuestionIndex': currentQuestionIndex,
-            'correctAnswerIndex': correctAnswerIndex + 1,
-            'questions': gameQuestions,
-            'score': 0,
-            'correctAnswerText': translatedQuestions[gameQuestions[currentQuestionIndex]][Object.keys(translatedQuestions[gameQuestions[currentQuestionIndex]])[0]][0],
-        });
 
-        // Set the current state to trivia mode. The skill will now use handlers defined in triviaStateHandlers
-        this.handler.state = GAME_STATES.TRIVIA;
-        this.emit(':askWithCard', speechOutput, repromptText, this.t('GAME_NAME'), repromptText);
-    },
-});
+ // --------------- Main handler -----------------------
 
-const triviaStateHandlers = Alexa.CreateStateHandler(GAME_STATES.TRIVIA, {
-    'AnswerIntent': function () {
-        handleUserGuess.call(this, false);
-    },
-    'DontKnowIntent': function () {
-        handleUserGuess.call(this, true);
-    },
-    'AMAZON.StartOverIntent': function () {
-        this.handler.state = GAME_STATES.START;
-        this.emitWithState('StartGame', false);
-    },
-    'AMAZON.RepeatIntent': function () {
-        this.emit(':ask', this.attributes['speechOutput'], this.attributes['repromptText']);
-    },
-    'AMAZON.HelpIntent': function () {
-        this.handler.state = GAME_STATES.HELP;
-        this.emitWithState('helpTheUser', false);
-    },
-    'AMAZON.StopIntent': function () {
-        this.handler.state = GAME_STATES.HELP;
-        const speechOutput = this.t('STOP_MESSAGE');
-        this.emit(':ask', speechOutput, speechOutput);
-    },
-    'AMAZON.CancelIntent': function () {
-        this.emit(':tell', this.t('CANCEL_MESSAGE'));
-    },
-    'Unhandled': function () {
-        const speechOutput = this.t('TRIVIA_UNHANDLED', ANSWER_COUNT.toString());
-        this.emit(':ask', speechOutput, speechOutput);
-    },
-    'SessionEndedRequest': function () {
-        console.log(`Session ended in trivia state: ${this.event.request.reason}`);
-    },
-});
+ // Route the incoming request based on type (LaunchRequest, IntentRequest,
+ // etc.) The JSON body of the request is provided in the event parameter.
+ exports.handler = (event, context, callback) => {
+     try {
+         console.log(`event.session.application.applicationId=${event.session.application.applicationId}`);
 
-const helpStateHandlers = Alexa.CreateStateHandler(GAME_STATES.HELP, {
-    'helpTheUser': function (newGame) {
-        const askMessage = newGame ? this.t('ASK_MESSAGE_START') : this.t('REPEAT_QUESTION_MESSAGE') + this.t('STOP_MESSAGE');
-        const speechOutput = this.t('HELP_MESSAGE', GAME_LENGTH) + askMessage;
-        const repromptText = this.t('HELP_REPROMPT') + askMessage;
-        this.emit(':ask', speechOutput, repromptText);
-    },
-    'AMAZON.StartOverIntent': function () {
-        this.handler.state = GAME_STATES.START;
-        this.emitWithState('StartGame', false);
-    },
-    'AMAZON.RepeatIntent': function () {
-        const newGame = !(this.attributes['speechOutput'] && this.attributes['repromptText']);
-        this.emitWithState('helpTheUser', newGame);
-    },
-    'AMAZON.HelpIntent': function () {
-        const newGame = !(this.attributes['speechOutput'] && this.attributes['repromptText']);
-        this.emitWithState('helpTheUser', newGame);
-    },
-    'AMAZON.YesIntent': function () {
-        if (this.attributes['speechOutput'] && this.attributes['repromptText']) {
-            this.handler.state = GAME_STATES.TRIVIA;
-            this.emitWithState('AMAZON.RepeatIntent');
-        } else {
-            this.handler.state = GAME_STATES.START;
-            this.emitWithState('StartGame', false);
-        }
-    },
-    'AMAZON.NoIntent': function () {
-        const speechOutput = this.t('NO_MESSAGE');
-        this.emit(':tell', speechOutput);
-    },
-    'AMAZON.StopIntent': function () {
-        const speechOutput = this.t('STOP_MESSAGE');
-        this.emit(':ask', speechOutput, speechOutput);
-    },
-    'AMAZON.CancelIntent': function () {
-        this.emit(':tell', this.t('CANCEL_MESSAGE'));
-    },
-    'Unhandled': function () {
-        const speechOutput = this.t('HELP_UNHANDLED');
-        this.emit(':ask', speechOutput, speechOutput);
-    },
-    'SessionEndedRequest': function () {
-        console.log(`Session ended in help state: ${this.event.request.reason}`);
-    },
-});
+         /**
+          * Uncomment this if statement and populate with your skill's application ID to
+          * prevent someone else from configuring a skill that sends requests to this function.
+          */
+         /*
+         if (event.session.application.applicationId !== 'amzn1.echo-sdk-ams.app.[unique-value-here]') {
+              callback('Invalid Application ID');
+         }
+         */
 
-exports.handler = function (event, context) {
-    const alexa = Alexa.handler(event, context);
-    alexa.appId = APP_ID;
-    // To enable string internationalization (i18n) features, set a resources object.
-    alexa.resources = languageString;
-    alexa.registerHandlers(newSessionHandlers, startStateHandlers, triviaStateHandlers, helpStateHandlers);
-    alexa.execute();
-};
+         if (event.session.new) {
+             onSessionStarted({ requestId: event.request.requestId }, event.session);
+         }
+
+         if (event.request.type === 'LaunchRequest') {
+             onLaunch(event.request,
+                 event.session,
+                 (sessionAttributes, speechletResponse) => {
+                     callback(null, buildResponse(sessionAttributes, speechletResponse));
+                 });
+         } else if (event.request.type === 'IntentRequest') {
+             onIntent(event.request,
+                 event.session,
+                 (sessionAttributes, speechletResponse) => {
+                     callback(null, buildResponse(sessionAttributes, speechletResponse));
+                 });
+         } else if (event.request.type === 'SessionEndedRequest') {
+             onSessionEnded(event.request, event.session);
+             callback();
+         }
+     } catch (err) {
+         callback(err);
+     }
+ };
