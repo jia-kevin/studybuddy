@@ -71,7 +71,7 @@ function randomizeOrder(quiz) {
 
 /**
 * Retrieves a quiz from Quizlet based on id
-* Returns callback with JSON array 
+* Returns callback with JSON array
 */
 function getQuiz(id, callback) {
     var url = BASE_URL + id + '/terms?client_id=' + CLIENT_ID;
@@ -146,7 +146,7 @@ function setColorInSession(intent, session, callback) {
 function getColorFromSession(intent, session, callback) {
     let favoriteColor;
     const repromptText = null;
-    const sessionAttributes = {};
+    let sessionAttributes = session.attributes;
     let shouldEndSession = false;
     let speechOutput = '';
 
@@ -169,14 +169,38 @@ function getColorFromSession(intent, session, callback) {
         buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
 }
 
+function answerQuestion (intent, session, callback) {
+  const questionAnswer = intent.slot.answer;
+  var correctNum = session.attributes['correct'];
+  var incorrectNum = session.attributes['incorrect'];
+
+  const repromptText = null;
+  var sessionAttributes = session.attributes;
+  var shouldEndSession = false;
+  var speechOutput = '';
+
+  if (questionAnswer === sessionAttributes['quiz'][sessionAttributes['question']][term]){
+    sessionAttributes['question'] = question++;
+    sessionAttributes['correct'] = correctNum++;
+    speechOutput = 'Congratulations you are correct!';
+  } else {
+    sessionAttributes['question'] = question++;
+    sessionAttributes['incorrect'] = incorrectNum++;
+    speechOutput = 'Incorrect Answer.';
+  }
+
+  callback(sessionAttributes,
+    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+
+}
 
 function repeatQuestion (intent, session, callback) {
   const repromptText = null;
-  const sessionAttributes = {};
-  let shouldEndSession = false;
-  let speechOutput = '';
+  let sessionAttributes = session.attributes;
+  var shouldEndSession = false;
+  var speechOutput = '';
 
-  //need to recall the current question and feed into speechOutput
+  speechOutput = sessionAttributes['quiz'][sessionAttributes['question']][definition];
 
   callback(sessionAttributes,
     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
@@ -184,17 +208,16 @@ function repeatQuestion (intent, session, callback) {
 }
 
 function skipQuestion (intent, session, callback) {
-  let question = session.attributes.question;
+  var question = session.attributes['question'];
+  var incorrect = session.attributes['incorrect'];
+  var sessionAttributes = session.attributes;
   const repromptText = null;
-  const sessionAttributes = {};
-  let shouldEndSession = false;
-  let speechOutput = '';
+  var shouldEndSession = false;
+  var speechOutput = '';
 
-  if (session.attributes) {
-    session.attributes['question'] = question++;
-  }
-
-  //call the current question and feed string into speechOutput
+  sessionAttributes['question'] = question++;
+  sessionAttributes['incorrect'] = incorrect++;
+  speechOutput = sessionAttributes['quiz'][sessionAttributes['question']][definition];
 
   callback(sessionAttributes,
     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
@@ -311,6 +334,8 @@ function onIntent(intentRequest, session, callback) {
         categorySelect(intent, session, callback);
     } else if (intentName === 'quizSelect') {
         quizSelect(intent, session, callback);
+    } else if (intentName === 'answerQuestion'){
+        answerQuestion(intent, session, callback);
     } else if (intentName === 'repeatQuestion') {
         repeatQuestion(intent, session, callback);
     } else if (intentName === 'skipQuestion') {
