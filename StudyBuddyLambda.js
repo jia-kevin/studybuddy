@@ -1,9 +1,3 @@
-<<<<<<< Updated upstream
-/* eslint-disable  func-names */
-/* eslint-disable  dot-notation */
-/* eslint-disable  new-cap */
-/* eslint quote-props: ['error', 'consistent']*/
-=======
 /**
  * Study Buddy
  * Alexa skill that quizzes you and gives live feedback, emplying adaptive learning
@@ -11,14 +5,13 @@
  * Hack the North 2017
  * Kevin Jia, Judy Liu, Kevin Zhang
  **/
->>>>>>> Stashed changes
-
+ 
 'use strict';
 
 const Alexa = require('alexa-sdk');
 const questions = require('./question');
 
-const ANSWER_COUNT = 4; // The number of possible answers per trivia question.
+const ANSWER_COUNT = 10; // The number of possible answers per trivia question.
 const GAME_LENGTH = 5;  // The number of questions per trivia game.
 const GAME_STATES = {
     TRIVIA: '_TRIVIAMODE', // Asking trivia questions.
