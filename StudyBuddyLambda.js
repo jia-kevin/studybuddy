@@ -12,6 +12,15 @@ const request = require('request');
 const BASE_URL = 'https://api.quizlet.com/2.0/sets/';
 const CLIENT_ID = 'uxKHy2Hg57';
 
+const lessons = {
+    'War of 1812' : 224423253,
+    'Ancient Greeks' : 224423901,
+    'World War Two' : 224423253,
+    'Anatomy of a Cell' : 224426220,
+    'Multiplication Tables' : 224427231,
+    'Geometry' : 224427531
+};
+
 // --------------- Helpers that build all of the responses -----------------------
 
 function buildSpeechletResponse(title, output, repromptText, shouldEndSession) {
@@ -291,10 +300,3 @@ exports.handler = (event, context, callback) => {
         callback(err);
     }
 };
-<<<<<<< HEAD
-
-getQuiz(224427531, function(data) {
-    console.log(randomizeOrder(data));
-});
-=======
->>>>>>> 7438221e620689c71cf18a06c0e58b236302f01e
