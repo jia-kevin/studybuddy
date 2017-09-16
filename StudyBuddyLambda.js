@@ -1,14 +1,9 @@
-/* eslint-disable  func-names */
-/* eslint-disable  dot-notation */
-/* eslint-disable  new-cap */
-/* eslint quote-props: ['error', 'consistent']*/
-
 'use strict';
 
 const Alexa = require('alexa-sdk');
 const questions = require('./question');
 
-const ANSWER_COUNT = 4; // The number of possible answers per trivia question.
+const ANSWER_COUNT = 10; // The number of possible answers per trivia question.
 const GAME_LENGTH = 5;  // The number of questions per trivia game.
 const GAME_STATES = {
     TRIVIA: '_TRIVIAMODE', // Asking trivia questions.
