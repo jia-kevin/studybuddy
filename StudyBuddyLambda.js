@@ -10,6 +10,7 @@
 const request = require('request');
 
 const BASE_URL = 'https://api.quizlet.com/2.0/sets/';
+const CLIENT_ID = 'uxKHy2Hg57';
 
 // --------------- Helpers that build all of the responses -----------------------
 
@@ -42,6 +43,21 @@ function buildResponse(sessionAttributes, speechletResponse) {
     };
 }
 
+/**
+* Scrambles quiz question order using Fisher-Yates Shuffle
+*/
+function randomizeOrder(quiz) {
+    var max = quiz.length;
+    for (var i = max - 1; i > 0; i--) {
+        var index = Math.floor(Math.random()*(i+1));
+        var temp = quiz[index];
+        quiz[index] = quiz[i];
+        quiz[i] = temp;
+    }
+    return quiz;
+}
+
+
 // --------------- Network Utilities -----------------------
 
 /**
@@ -49,7 +65,7 @@ function buildResponse(sessionAttributes, speechletResponse) {
 * Returns callback with JSON array 
 */
 function getQuiz(id, callback) {
-    var url = BASE_URL + id + '/terms?client_id=uxKHy2Hg57';
+    var url = BASE_URL + id + '/terms?client_id=' + CLIENT_ID;
     request({url: url, encoding: null}, function(error, response, body) {
         if (error) {
             throw error;
@@ -247,3 +263,7 @@ exports.handler = (event, context, callback) => {
         callback(err);
     }
 };
+
+getQuiz(224427531, function(data) {
+    console.log(randomizeOrder(data));
+});
