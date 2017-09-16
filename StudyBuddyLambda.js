@@ -7,6 +7,10 @@
  **/
 'use strict';
 
+const request = require('request');
+
+const BASE_URL = 'https://api.quizlet.com/2.0/sets/';
+
 // --------------- Helpers that build all of the responses -----------------------
 
 function buildSpeechletResponse(title, output, repromptText, shouldEndSession) {
@@ -36,6 +40,22 @@ function buildResponse(sessionAttributes, speechletResponse) {
         sessionAttributes,
         response: speechletResponse,
     };
+}
+
+// --------------- Network Utilities -----------------------
+
+/**
+* Retrieves a quiz from Quizlet based on id
+* Returns callback with JSON array 
+*/
+function getQuiz(id, callback) {
+    var url = BASE_URL + id + '/terms?client_id=uxKHy2Hg57';
+    request({url: url, encoding: null}, function(error, response, body) {
+        if (error) {
+            throw error;
+        }
+        callback(JSON.parse(body.toString()));
+    });
 }
 
 
