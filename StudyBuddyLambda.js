@@ -202,6 +202,84 @@ function skipQuestion (intent, session, callback) {
 
 // --------------- Events -----------------------
 
+function categorySelect(intent, session, callback) {
+    const sessionAttributes = {
+        "category" : intent.slots.category,
+        "quizId" : null,
+        "quiz" : null,
+        "question" : null,
+        "correct" : null,
+        "incorrect" : null
+    };
+
+    let quizOptions = [];
+
+    if (intent.slots.category === 'history') {
+        quizOptions = ['war of eighteen twelve', 'ancient greeks', 'world war two'];
+    } else if (intent.slots.category === 'hcience') {
+        quizOptions = ['anatomy of a cell', 'taxonomy'];
+    } else if (intent.slots.category === 'math') {
+        quizOptions = ['multiplication terms', 'geometry terms'];
+    }
+
+    const cardTitle = 'Quiz Select';
+    var speechOutput = intent.slots.category + ' category selected.' +
+        'Please select a quiz. Options are ';
+    for (var i=0; i<quizOptions.length; i++) {
+        speechOutput += quizOptions[i] + ', ';
+    }
+    speechOutput[speechOutput.length - 2] = '.'
+    // If the user either does not reply to the welcome message or says something that is not
+    // understood, they will be prompted again with this text.
+    const repromptText = 'Please select a quiz. Options are ';
+    for (var i=0; i<quizOptions.length; i++) {
+        repromptText += quizOptions[i] + ', ';
+    }
+    repromptText[repromptText.length - 2] = '.'
+    const shouldEndSession = false;
+
+    callback(sessionAttributes,
+        buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+} 
+
+function quizSelect(intent, session, callback) {
+    var sessionAttributes = session.attributes;
+    sessionAttributes['quizId'] = lessons[intentRequest.slots.quiz]
+    getQuiz(lessons[intentRequest.slots.quiz], function(response) {
+        sessionAttributes['quiz'] = response;
+    });
+
+    sessionAttributes['question'] = 0;
+    sessionAttributes['correct'] = 0;
+    sessionAttributes['incorrect'] = 0;
+
+    var speechOutput = sessionAttributes['quiz'][sessionAttributes['question']][definition];
+    var repromptText = sessionAttributes['quiz'][sessionAttributes['question']][definition];
+
+    const shouldEndSession = false;
+
+    callback(sessionAttributes,
+        buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+}
+
+function endQuiz(intent, session, callback) {
+    var sessionAttributes = session.attributes;
+    sessionAttributes['quiz'] = null;
+
+    var speechOutput = '';
+    if (sessionAttributes['correct'] + sessionAttributes['incorrect'] != 0) {
+        speechOutput += 'Great study session. Your stats are ' + sessionAttributes['correct'] + ' correct and ' + sessionAttributes['incorrect'] + 
+                        ' incorrect, for a correct rate of ' + (sessionAttributes['correct']*1.0/(sessionAttributes['incorrect'])) + ' percent. ';
+    }
+
+    speechOutput += 'Please pick a category that you would wish to study from.';
+    const repromptText = 'Please pick a category'
+    const shouldEndSession = false;
+
+    callback(sessionAttributes,
+        buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+}
+
 /**
  * Called when the session starts.
  */
