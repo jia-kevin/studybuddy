@@ -97,7 +97,7 @@ function getWelcomeResponse(callback) {
     // If we wanted to initialize the session to have some attributes we could add those here.
     const sessionAttributes = {};
     const cardTitle = 'Welcome';
-    const speechOutput = 'Welcome to the Study Buddy. ' +
+    const speechOutput = 'Welcome to Study Buddy. ' +
         'Please pick a category that you would wish to study from.';
     // If the user either does not reply to the welcome message or says something that is not
     // understood, they will be prompted again with this text.
@@ -118,7 +118,7 @@ function handleSessionEndRequest(callback) {
 }
 
 function categorySelect(intent, session, callback) {
-    var sessionAttributes = session.attributes;
+    var sessionAttributes = {};
     if (sessionAttributes['category'] == null) {
         sessionAttributes = {
             "category": intent.slots.category,
@@ -205,7 +205,7 @@ function quizSelect(intent, session, callback) {
 
 function answerQuestion(intent, session, callback) {
     var questionAnswer = intent.slots.answer.value;
-    const repromptText = null;
+    var repromptText = null;
     var sessionAttributes = session.attributes;
     var shouldEndSession = false;
     var speechOutput = '';
@@ -216,8 +216,24 @@ function answerQuestion(intent, session, callback) {
                 sessionAttributes['correct']++;
             sessionAttributes['currentTries'] = 0;
             speechOutput = 'Congratulations you are correct! ';
-            if (sessionAttributes['question'] === sessionAttributes['quiz'].length)
-                endQuiz(intent, session, callback);
+            if (sessionAttributes['question'] === sessionAttributes['quiz'].length) {
+              sessionAttributes['quiz'] = null;
+              sessionAttributes['quizId'] = null;
+              sessionAttributes['category'] = null;
+              if (sessionAttributes['correct'] + sessionAttributes['incorrect'] != 0) {
+                  speechOutput += 'Great study session. Your stats are ' + sessionAttributes['correct'] + ' correct and ' + sessionAttributes['incorrect'] +
+                      ' incorrect, for a correct rate of ' + Math.round((sessionAttributes['correct'] * 100.0 / (sessionAttributes['incorrect'] + sessionAttributes['correct']))) + ' percent. ';
+              }
+
+              sessionAttributes['correct'] = null;
+              sessionAttributes['incorrect'] = null;
+              sessionAttributes['currentTries'] = null;
+              sessionAttributes['question'] = null;
+              speechOutput += 'Please pick a category that you would wish to study from. ';
+              repromptText = 'Please pick a category. '
+              callback(sessionAttributes,
+                  buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+            }
             speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
         } else {
             if (sessionAttributes['currentTries'] == 0)
@@ -227,14 +243,30 @@ function answerQuestion(intent, session, callback) {
                 speechOutput = 'Incorrect Answer. Try Again. ';
                 speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
             } else {
-                speechOutput = 'You have gotten this question incorrect. The correct answer is ' + sessionAttributes['quiz'][sessionAttributes['question']]['term'] + '. ' +
-                'Moving on to the next question. ';
+                speechOutput = 'You have gotten this question incorrect. The correct answer is ' + sessionAttributes['quiz'][sessionAttributes['question']]['term'] + '. ';
                 sessionAttributes['question']++;
                 sessionAttributes['currentTries'] = 0;
 
-                if (sessionAttributes['question'] === sessionAttributes['quiz'].length)
-                    endQuiz(intent, session, callback);
-                speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
+                if (sessionAttributes['question'] === sessionAttributes['quiz'].length) {
+                  sessionAttributes['quiz'] = null;
+                  sessionAttributes['quizId'] = null;
+                  sessionAttributes['category'] = null;
+                   speechOutput = '';
+                  if (sessionAttributes['correct'] + sessionAttributes['incorrect'] != 0) {
+                      speechOutput += 'Great study session. Your stats are ' + sessionAttributes['correct'] + ' correct and ' + sessionAttributes['incorrect'] +
+                          ' incorrect, for a correct rate of ' + Math.round((sessionAttributes['correct'] * 100.0 / (sessionAttributes['incorrect'] + sessionAttributes['correct']))) + ' percent. ';
+                  }
+
+                  sessionAttributes['correct'] = null;
+                  sessionAttributes['incorrect'] = null;
+                  sessionAttributes['currentTries'] = null;
+                  sessionAttributes['question'] = null;
+                  speechOutput += 'Please pick a category that you would wish to study from. ';
+                  repromptText = 'Please pick a category. '
+                  callback(sessionAttributes,
+                      buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                }
+                speechOutput += 'Moving on to the next question. ' + sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
             }
         }
     } else {
@@ -275,8 +307,25 @@ function skipQuestion(intent, session, callback) {
           sessionAttributes['incorrect']++;
         sessionAttributes['currentTries'] = 0;
 
-        if (sessionAttributes['question'] === sessionAttributes['quiz'].length)
-          endQuiz(intent, session, callback);
+        if (sessionAttributes['question'] === sessionAttributes['quiz'].length) {
+          sessionAttributes['quiz'] = null;
+          sessionAttributes['quizId'] = null;
+          sessionAttributes['category'] = null;
+          speechOutput = '';
+          if (sessionAttributes['correct'] + sessionAttributes['incorrect'] != 0) {
+              speechOutput += 'Great study session. Your stats are ' + sessionAttributes['correct'] + ' correct and ' + sessionAttributes['incorrect'] +
+                  ' incorrect, for a correct rate of ' + Math.round((sessionAttributes['correct'] * 100.0 / (sessionAttributes['incorrect'] + sessionAttributes['correct']))) + ' percent. ';
+          }
+
+          sessionAttributes['correct'] = null;
+          sessionAttributes['incorrect'] = null;
+          sessionAttributes['currentTries'] = null;
+          sessionAttributes['question'] = null;
+          speechOutput += 'Please pick a category that you would wish to study from. ';
+          repromptText = 'Please pick a category. '
+          callback(sessionAttributes,
+              buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+        }
         speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
     } else {
         speechOutput = 'No question to skip. ';
