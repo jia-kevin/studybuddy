@@ -6,8 +6,8 @@
   "dependencies": {
     "firebase": "^4.3.1",
     "firebase-admin": "^5.2.1",
-    "requests": "^0.2.2",
     "request": "^2.81.0",
+    "requests": "^0.2.2",
     "save": "^2.3.1"
   },
   "devDependencies": {},

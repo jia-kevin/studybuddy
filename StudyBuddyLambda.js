@@ -8,18 +8,23 @@
 'use strict';
 
 const request = require('request');
+const admin = require('firebase-admin');
+const SERVICE_ACCOUNT = require('./serviceAccountKey.json');
 
 const BASE_URL = 'https://api.quizlet.com/2.0/sets/';
 const CLIENT_ID = 'uxKHy2Hg57';
+const DATABASE_URL = 'https://studybuddy-b647e.firebaseio.com';
 
-const lessons = {
-    'War of 1812' : 224423253,
-    'Ancient Greeks' : 224423901,
-    'World War Two' : 224423253,
-    'Anatomy of a Cell' : 224426220,
-    'Multiplication Tables' : 224427231,
-    'Geometry' : 224427531
-};
+// const lessons = {
+//     'War of 1812' : 224419706,
+//     'Ancient Greeks' : 224423901,
+//     'World War Two' : 224423253,
+//     'Anatomy of a Cell' : 224426220,
+//     'Multiplication Tables' : 224427231,
+//     'Geometry' : 224427531
+// };
+
+var lessons = {};
 
 // --------------- Helpers that build all of the responses -----------------------
 
@@ -83,13 +88,45 @@ function getQuiz(id, callback) {
     });
 }
 
-function getLessons() {
-    firebase.auth().signInAnonymously().catch(function(error) {
-        // Handle Errors here.
-        var errorCode = error.code;
-        var errorMessage = error.message;
-        console.log(error + ': ' + errorMessage);
-        // ...
+/**
+* Initializes lessons object from Firebase database
+*/
+function initLessons() {
+    lessons = {};
+    admin.initializeApp({
+        credential: admin.credential.cert(SERVICE_ACCOUNT),
+        databaseURL: DATABASE_URL
+    });
+
+    var db = admin.database();
+    var labels = db.ref('/labels');
+    var headers = undefined;
+
+    labels.on('value', function(snapshot) {
+        headers = snapshot.val();
+
+        if (headers !== undefined) {
+            var headersArray = headers.split(', ');
+            var total = headersArray.length;
+            var current = 0;
+
+            headersArray.forEach(function (title) {
+                var ref = db.ref('/data/' + title);
+                ref.on('value', function(value) {
+                    current++;
+                    lessons[title] = value.val();
+                    ref.off('value');
+                    if (current == total) {
+                        db.goOffline();
+                    }
+                });
+            });
+        } else {
+            labels.off('value');
+            db.goOffline();
+        }
+    }, function (errorObject) {
+        console.log("The read failed: " + errorObject.code);
     });
 }
 
@@ -414,3 +451,5 @@ exports.handler = (event, context, callback) => {
         callback(err);
     }
 };
+
+initLessons();
