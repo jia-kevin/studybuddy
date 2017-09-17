@@ -15,16 +15,9 @@ const BASE_URL = 'https://api.quizlet.com/2.0/sets/';
 const CLIENT_ID = 'uxKHy2Hg57';
 const DATABASE_URL = 'https://studybuddy-b647e.firebaseio.com';
 
-// const lessons = {
-//     'War of 1812' : 224419706,
-//     'Ancient Greeks' : 224423901,
-//     'World War Two' : 224423253,
-//     'Anatomy of a Cell' : 224426220,
-//     'Multiplication Tables' : 224427231,
-//     'Geometry' : 224427531
-// };
-
 var lessons = {};
+var categories = [];
+var lessonsToCategories = {};
 
 // --------------- Helpers that build all of the responses -----------------------
 
@@ -71,6 +64,15 @@ function randomizeOrder(quiz) {
     return quiz;
 }
 
+/**
+* Copies an object
+*/
+function copyObject(source, destination) {
+    for (var property in source) {
+        destination[property] = source[property];
+    }
+}
+
 
 // --------------- Network Utilities -----------------------
 
@@ -89,16 +91,50 @@ function getQuiz(id, callback) {
 }
 
 /**
-* Initializes lessons object from Firebase database
+* Initializes everything Firebase related
+* Should be run at the start of the Alexa skill
 */
-function initLessons() {
-    lessons = {};
+function initFirebase() {
+    initDatabase();
+    var db = admin.database();
+    var count = 0;
+    function checkDone() {
+        count++;
+        if (count == 3) {
+            db.goOffline();
+            console.log('Lessons: ' + '\n-------------');
+            for (var key in lessons) {
+                console.log(key + ': ' + lessons[key]);
+            }
+            console.log('Categories: ' + '\n-------------');
+            console.log(categories);
+            console.log('LessonsToCategories: ' + '\n-------------');
+            for (var key in lessonsToCategories) {
+                console.log(key + ': ' + lessonsToCategories[key]);
+            }
+        }
+    }
+    initLessons(db, checkDone);
+    initCategories(db, checkDone);
+    initLessonsToCategories(db, checkDone);
+}
+
+/**
+* Initializes Firebase database - this must be done before other Firebase operations can be done
+*/
+function initDatabase() {
     admin.initializeApp({
         credential: admin.credential.cert(SERVICE_ACCOUNT),
         databaseURL: DATABASE_URL
     });
+}
 
-    var db = admin.database();
+/**
+* Initializes lessons object from Firebase database
+* Takes in a Firebase database
+*/
+function initLessons(db, callback) {
+    var output = {};
     var labels = db.ref('/labels');
     var headers = undefined;
 
@@ -107,30 +143,86 @@ function initLessons() {
 
         if (headers !== undefined) {
             var headersArray = headers.split(', ');
-            var total = headersArray.length;
-            var current = 0;
+            var count = 0;
+            var goal = headersArray.length;
 
             headersArray.forEach(function (title) {
                 var ref = db.ref('/data/' + title);
                 ref.on('value', function(value) {
-                    current++;
-                    lessons[title] = value.val();
+                    count++;
+                    output[title] = value.val();
                     ref.off('value');
-                    if (current == total) {
-                        db.goOffline();
+                    if (count == goal) {
+                        copyObject(output, lessons);
+                        callback();
                     }
                 });
             });
         } else {
             labels.off('value');
-            db.goOffline();
         }
     }, function (errorObject) {
         console.log("The read failed: " + errorObject.code);
+        callback();
     });
 }
 
+/**
+* Initializes categories object from Firebase database
+* Takes in a Firebase database
+*/
+function initCategories(db, callback) {
+    categories = [];
+    var ref = db.ref('/categories');
+    var values = undefined
 
+    ref.on('value', function(snapshot) {
+        values = snapshot.val();
+
+        if (values !== undefined) {
+            categories = values.split(', ');
+        } else {
+            ref.off('value');
+        }
+        callback();
+    }, function (errorObject) {
+        console.log("The read failed: " + errorObject.code);
+        callback();
+    });
+}
+
+function initLessonsToCategories(db, callback) {
+    lessonsToCategories = {};
+    var labels = db.ref('/labels');
+    var headers = undefined;
+
+    labels.on('value', function(snapshot) {
+        headers = snapshot.val();
+
+        if (headers !== undefined) {
+            var headersArray = headers.split(', ');
+            var count = 0;
+            var total = headersArray.length;
+
+            headersArray.forEach(function (title) {
+                var ref = db.ref('/lessonsToCategories/' + title);
+                ref.on('value', function(value) {
+                    lessonsToCategories[title] = value.val();
+                    ref.off('value');
+                    count++;
+                    if (count == total) {
+                        callback();
+                    }
+                });
+            });
+        } else {
+            labels.off('value');
+        }
+    }, function (errorObject) {
+        console.log("The read failed: " + errorObject.code);
+        callback();
+    });
+}
 
 
 // --------------- Functions that control the skill's behavior -----------------------
@@ -451,5 +543,3 @@ exports.handler = (event, context, callback) => {
         callback(err);
     }
 };
-
-initLessons();
