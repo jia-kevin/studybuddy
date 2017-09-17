@@ -225,7 +225,7 @@ function quizSelect(intent, session, callback) {
 
     sessionAttributes['quizId'] = lessons[intent.slots.quiz.value]
     getQuiz(lessons[intent.slots.quiz.value], function(response) {
-        sessionAttributes['quiz'] = response;
+        sessionAttributes['quiz'] = randomizeOrder(response);
 
         sessionAttributes['question'] = 0;
         sessionAttributes['correct'] = 0;
@@ -252,7 +252,7 @@ function answerQuestion (intent, session, callback) {
     if (sessionAttributes['currentTries'] == 0)
       sessionAttributes['correct']++;
     sessionAttributes['currentTries'] = 0;
-    speechOutput = 'Congratulations you are correct!';
+    speechOutput = 'Congratulations you are correct! ';
     speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
   } else {
     if (sessionAttributes['currentTries'] == 0)
