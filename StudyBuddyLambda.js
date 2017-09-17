@@ -92,6 +92,7 @@ function getQuiz(id, callback) {
 
 /**
 * Initializes everything Firebase related
+* Should be run at the start of the Alexa skill
 */
 function initFirebase() {
     initDatabase();
