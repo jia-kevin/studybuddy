@@ -1,3 +1,4 @@
+
 /**
  * Study Buddy
  * Alexa skill that quizzes you and gives live feedback, emplying adaptive learning
@@ -15,12 +16,13 @@ const CLIENT_ID = 'uxKHy2Hg57';
 const TRIES_LIMIT = 3;
 
 const lessons = {
-    'war of 1812' : 224423253,
-    'ancient greeks' : 224423901,
-    'world war 2' : 224423253,
-    'anatomy of a cell' : 224426220,
-    'multiplication tables' : 224427231,
-    'geometry' : 224427531
+    'war of 1812': 224419706,
+    'ancient greeks': 224423901,
+    'world war 2': 224423253,
+    'anatomy of a cell': 224426220,
+    'taxonomy' : 224426529,
+    'multiplication tables': 224427231,
+    'geometry': 224427531
 };
 
 // --------------- Helpers that build all of the responses -----------------------
@@ -55,12 +57,12 @@ function buildResponse(sessionAttributes, speechletResponse) {
 }
 
 /**
-* Scrambles quiz question order using Fisher-Yates Shuffle
-*/
+ * Scrambles quiz question order using Fisher-Yates Shuffle
+ */
 function randomizeOrder(quiz) {
     var max = quiz.length;
     for (var i = max - 1; i > 0; i--) {
-        var index = Math.floor(Math.random()*(i+1));
+        var index = Math.floor(Math.random() * (i + 1));
         var temp = quiz[index];
         quiz[index] = quiz[i];
         quiz[i] = temp;
@@ -72,12 +74,15 @@ function randomizeOrder(quiz) {
 // --------------- Network Utilities -----------------------
 
 /**
-* Retrieves a quiz from Quizlet based on id
-* Returns callback with JSON array
-*/
+ * Retrieves a quiz from Quizlet based on id
+ * Returns callback with JSON array
+ */
 function getQuiz(id, callback) {
     var url = BASE_URL + id + '/terms?client_id=' + CLIENT_ID;
-    request({url: url, encoding: null}, function(error, response, body) {
+    request({
+        url: url,
+        encoding: null
+    }, function(error, response, body) {
         if (error) {
             throw error;
         }
@@ -113,157 +118,204 @@ function handleSessionEndRequest(callback) {
 }
 
 function categorySelect(intent, session, callback) {
-    const sessionAttributes = {
-        "category" : intent.slots.category,
-        "quizId" : null,
-        "quiz" : null,
-        "question" : null,
-        "correct" : null,
-        "incorrect" : null,
-        "currentTries" : null
-    };
-    const cardTitle = 'Quiz Select';
-    var speechOutput = '';
-    var repromptText = '';
-    var quizOptions = [];
+    var sessionAttributes = session.attributes;
+    if (sessionAttributes['category'] == null) {
+        sessionAttributes = {
+            "category": intent.slots.category,
+            "quizId": null,
+            "quiz": null,
+            "question": null,
+            "correct": null,
+            "incorrect": null,
+            "currentTries": null
+        };
+        const cardTitle = 'Quiz Select';
+        var speechOutput = '';
+        var repromptText = '';
+        var quizOptions = [];
 
-    if (intent.slots.category.value === 'history') {
-        quizOptions = ['war of eighteen twelve', 'ancient greeks', 'world war two'];
-    } else if (intent.slots.category.value === 'science') {
-        quizOptions = ['anatomy of a cell', 'taxonomy'];
-    } else if (intent.slots.category.value === 'math') {
-        quizOptions = ['multiplication tables', 'geometry terms'];
-    }
+        if (intent.slots.category.value === 'history') {
+            quizOptions = ['war of eighteen twelve', 'ancient greeks', 'world war two'];
+        } else if (intent.slots.category.value === 'science') {
+            quizOptions = ['anatomy of a cell', 'taxonomy'];
+        } else if (intent.slots.category.value === 'math') {
+            quizOptions = ['multiplication tables', 'geometry'];
+        }
 
-    speechOutput = intent.slots.category.value + ' category selected.' +
-        'Please select a quiz. Options are ';
-    for (var i=0; i<quizOptions.length; i++) {
-        speechOutput += quizOptions[i] + ', ';
-    }
-    //speechOutput[speechOutput.length - 2] = '.'
-    // If the user either does not reply to the welcome message or says something that is not
-    // understood, they will be prompted again with this text.
-    repromptText = 'Please select a quiz. Options are ';
-    for (var i=0; i<quizOptions.length; i++) {
-        repromptText += quizOptions[i] + ', ';
-    }
-    //repromptText[repromptText.length - 2] = '.'
-    const shouldEndSession = false;
+        speechOutput = intent.slots.category.value + ' category selected. ' +
+            'Please select a quiz. Options are ';
+        for (var i = 0; i < quizOptions.length; i++) {
+            speechOutput += quizOptions[i] + ', ';
+        }
+        //speechOutput[speechOutput.length - 2] = '.'
+        // If the user either does not reply to the welcome message or says something that is not
+        // understood, they will be prompted again with this text.
+        repromptText = 'Please select a quiz. Options are ';
+        for (var i = 0; i < quizOptions.length; i++) {
+            repromptText += quizOptions[i] + ', ';
+        }
+        //repromptText[repromptText.length - 2] = '.'
+        const shouldEndSession = false;
 
-    callback(sessionAttributes,
-        buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+        callback(sessionAttributes,
+            buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+    } else {
+        const cardTitle = 'Quiz Select';
+        var speechOutput = 'You have already selected a category. ';
+        var repromptText = '';
+        const shouldEndSession = false;
+        callback(sessionAttributes,
+            buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+    }
 }
 
 function quizSelect(intent, session, callback) {
     var sessionAttributes = session.attributes;
-    const cardTitle = 'Quiz Select';
-    var speechOutput = '';
-    var repromptText = '';
-    const shouldEndSession = false;
+    if (sessionAttributes['quizId'] == null) {
+        const cardTitle = 'Quiz Select';
+        var speechOutput = '';
+        var repromptText = '';
+        const shouldEndSession = false;
 
-    sessionAttributes['quizId'] = lessons[intent.slots.quiz.value]
-    getQuiz(lessons[intent.slots.quiz.value], function(response) {
-        sessionAttributes['quiz'] = randomizeOrder(response);
+        sessionAttributes['quizId'] = lessons[intent.slots.quiz.value]
+        getQuiz(lessons[intent.slots.quiz.value], function(response) {
+            sessionAttributes['quiz'] = randomizeOrder(response);
 
-        sessionAttributes['question'] = 0;
-        sessionAttributes['correct'] = 0;
-        sessionAttributes['incorrect'] = 0;
-        sessionAttributes['currentTries'] = 0;
+            sessionAttributes['question'] = 0;
+            sessionAttributes['correct'] = 0;
+            sessionAttributes['incorrect'] = 0;
+            sessionAttributes['currentTries'] = 0;
 
-        speechOutput = sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
-        repromptText = sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
+            speechOutput = sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
+            repromptText = sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
+
+            callback(sessionAttributes,
+                buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+        });
+    } else {
+        const cardTitle = 'Quiz Select';
+        var speechOutput = 'You have already selected a quiz. ';
+        var repromptText = '';
+        const shouldEndSession = false;
 
         callback(sessionAttributes,
             buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
-    });
-}
-
-function answerQuestion (intent, session, callback) {
-  var questionAnswer = intent.slots.answer.value;
-  const repromptText = null;
-  var sessionAttributes = session.attributes;
-  var shouldEndSession = false;
-  var speechOutput = '';
-
-  if (questionAnswer === sessionAttributes['quiz'][sessionAttributes['question']]['term']){
-    sessionAttributes['question']++;
-    if (sessionAttributes['currentTries'] == 0)
-      sessionAttributes['correct']++;
-    sessionAttributes['currentTries'] = 0;
-    speechOutput = 'Congratulations you are correct! ';
-    speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
-  } else {
-    if (sessionAttributes['currentTries'] == 0)
-      sessionAttributes['incorrect']++;
-    sessionAttributes['currentTries']++;
-    if (sessionAttributes['currentTries'] < TRIES_LIMIT) {
-      speechOutput = 'Incorrect Answer. Try Again. ';
-      speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
     }
-    else {
-      speechOutput = 'You have gotten this question incorrect. Moving on to the next question. ';
-      sessionAttributes['question']++;
-      sessionAttributes['currentTries'] = 0;
-      speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
+}
+
+function answerQuestion(intent, session, callback) {
+    var questionAnswer = intent.slots.answer.value;
+    const repromptText = null;
+    var sessionAttributes = session.attributes;
+    var shouldEndSession = false;
+    var speechOutput = '';
+    if (sessionAttributes['question'] != null) {
+        if (questionAnswer === sessionAttributes['quiz'][sessionAttributes['question']]['term']) {
+            sessionAttributes['question']++;
+            if (sessionAttributes['currentTries'] == 0)
+                sessionAttributes['correct']++;
+            sessionAttributes['currentTries'] = 0;
+            speechOutput = 'Congratulations you are correct! ';
+            if (sessionAttributes['question'] === sessionAttributes['quiz'].length)
+                endQuiz(intent, session, callback);
+            speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
+        } else {
+            if (sessionAttributes['currentTries'] == 0)
+                sessionAttributes['incorrect']++;
+            sessionAttributes['currentTries']++;
+            if (sessionAttributes['currentTries'] < TRIES_LIMIT) {
+                speechOutput = 'Incorrect Answer. Try Again. ';
+                speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
+            } else {
+                speechOutput = 'You have gotten this question incorrect. The correct answer is ' + sessionAttributes['quiz'][sessionAttributes['question']]['term'] + '. ' +
+                'Moving on to the next question. ';
+                sessionAttributes['question']++;
+                sessionAttributes['currentTries'] = 0;
+
+                if (sessionAttributes['question'] === sessionAttributes['quiz'].length)
+                    endQuiz(intent, session, callback);
+                speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
+            }
+        }
+    } else {
+        speechOutput = 'No question to answer. ';
     }
-  }
 
-  callback(sessionAttributes,
-    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-
-}
-
-function repeatQuestion (intent, session, callback) {
-  const repromptText = null;
-  let sessionAttributes = session.attributes;
-  var shouldEndSession = false;
-  var speechOutput = '';
-
-  speechOutput = sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
-
-  callback(sessionAttributes,
-    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+    callback(sessionAttributes,
+        buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
 
 }
 
-function skipQuestion (intent, session, callback) {
-  var question = session.attributes['question'];
-  var incorrect = session.attributes['incorrect'];
-  var sessionAttributes = session.attributes;
-  const repromptText = null;
-  var shouldEndSession = false;
-  var speechOutput = '';
+function repeatQuestion(intent, session, callback) {
+    const repromptText = null;
+    let sessionAttributes = session.attributes;
+    var shouldEndSession = false;
+    var speechOutput = '';
 
-  sessionAttributes['currentTries'] = 0;
-  sessionAttributes['question'] = question++;
-  sessionAttributes['incorrect'] = incorrect++;
-  speechOutput = sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
+    if (sessionAttributes['question'] != null)
+        speechOutput = sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
+    else
+        speechOutput = 'No question to repeat. ';
 
-  callback(sessionAttributes,
-    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+    callback(sessionAttributes,
+        buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+
+}
+
+function skipQuestion(intent, session, callback) {
+    var sessionAttributes = session.attributes;
+    const repromptText = null;
+    var shouldEndSession = false;
+    var speechOutput = '';
+
+    if (sessionAttributes['question'] != null) {
+        speechOutput = 'The correct answer is ' + sessionAttributes['quiz'][sessionAttributes['question']]['term'] + '. ';
+        sessionAttributes['question']++;
+        if (sessionAttributes['currentTries'] == 0)
+          sessionAttributes['incorrect']++;
+        sessionAttributes['currentTries'] = 0;
+
+        if (sessionAttributes['question'] === sessionAttributes['quiz'].length)
+          endQuiz(intent, session, callback);
+        speechOutput += sessionAttributes['quiz'][sessionAttributes['question']]['definition'];
+    } else {
+        speechOutput = 'No question to skip. ';
+    }
+
+    callback(sessionAttributes,
+        buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
 }
 
 
 function endQuiz(intent, session, callback) {
     var sessionAttributes = session.attributes;
-    sessionAttributes['quiz'] = null;
+    var cardTitle = 'End Quiz';
+    if (sessionAttributes['quizId'] != null) {
+        sessionAttributes['quiz'] = null;
+        sessionAttributes['quizId'] = null;
+        sessionAttributes['category'] = null;
+        var speechOutput = '';
+        if (sessionAttributes['correct'] + sessionAttributes['incorrect'] != 0) {
+            speechOutput += 'Great study session. Your stats are ' + sessionAttributes['correct'] + ' correct and ' + sessionAttributes['incorrect'] +
+                ' incorrect, for a correct rate of ' + Math.round((sessionAttributes['correct'] * 100.0 / (sessionAttributes['incorrect'] + sessionAttributes['correct']))) + ' percent. ';
+        }
 
-    var speechOutput = '';
-    if (sessionAttributes['correct'] + sessionAttributes['incorrect'] != 0) {
-        speechOutput += 'Great study session. Your stats are ' + sessionAttributes['correct'] + ' correct and ' + sessionAttributes['incorrect'] +
-                        ' incorrect, for a correct rate of ' + (sessionAttributes['correct']*1.0/(sessionAttributes['incorrect'])) + ' percent. ';
+        sessionAttributes['correct'] = null;
+        sessionAttributes['incorrect'] = null;
+        sessionAttributes['currentTries'] = null;
+        sessionAttributes['question'] = null;
+        speechOutput += 'Please pick a category that you would wish to study from. ';
+        const repromptText = 'Please pick a category. '
+        const shouldEndSession = false;
+        callback(sessionAttributes,
+            buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+    } else {
+        var speechOutput = 'Currently not doing a quiz. ';
+        const repromptText = '';
+        const shouldEndSession = false;
+        callback(sessionAttributes,
+            buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
     }
-
-    sessionAttributes['correct'] = null;
-    sessionAttributes['incorrect'] = null;
-    sessionAttributes['currentTries'] = null;
-    sessionAttributes['question'] = null;
-    speechOutput += 'Please pick a category that you would wish to study from.';
-    const repromptText = 'Please pick a category'
-    const shouldEndSession = false;
-
-    callback(sessionAttributes,
-        buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
 }
 
 
@@ -300,7 +352,7 @@ function onIntent(intentRequest, session, callback) {
         categorySelect(intent, session, callback);
     } else if (intentName === 'quizSelect') {
         quizSelect(intent, session, callback);
-    } else if (intentName === 'answerQuestion'){
+    } else if (intentName === 'answerQuestion') {
         answerQuestion(intent, session, callback);
     } else if (intentName === 'repeatQuestion') {
         repeatQuestion(intent, session, callback);
