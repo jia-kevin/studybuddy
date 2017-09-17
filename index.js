@@ -145,6 +145,7 @@ function categorySelect(intent, session, callback) {
         speechOutput = intent.slots.category.value + ' category selected. ' +
             'Please select a quiz. Options are ';
         for (var i = 0; i < quizOptions.length; i++) {
+            if (i == quizOptions.length-1) speechOutput += ' and ';
             speechOutput += quizOptions[i] + ', ';
         }
         //speechOutput[speechOutput.length - 2] = '.'
@@ -152,6 +153,7 @@ function categorySelect(intent, session, callback) {
         // understood, they will be prompted again with this text.
         repromptText = 'Please select a quiz. Options are ';
         for (var i = 0; i < quizOptions.length; i++) {
+            if (i == quizOptions.length-1) repromptText += ' and ';
             repromptText += quizOptions[i] + ', ';
         }
         //repromptText[repromptText.length - 2] = '.'
