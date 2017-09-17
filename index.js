@@ -1,7 +1,7 @@
 
 /**
  * Study Buddy
- * Alexa skill that quizzes you and gives live feedback, emplying adaptive learning
+ * Alexa skill that quizzes you and gives live feedback, employing adaptive learning
  *
  * Hack the North 2017
  * Kevin Jia, Judy Liu, Kevin Zhang
